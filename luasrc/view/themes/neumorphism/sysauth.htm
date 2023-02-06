@@ -1,0 +1,82 @@
+<%#
+ Copyright 2008 Steven Barth <steven@midlink.org>
+ Copyright 2008-2012 Jo-Philipp Wich <jow@openwrt.org>
+ Licensed to the public under the Apache License 2.0.
+-%>
+
+<%+header_login%>
+
+<%
+    local sys  = require "luci.sys"
+	local util = require "luci.util"
+	local http = require "luci.http"
+	local disp = require "luci.dispatcher"
+
+	local boardinfo = util.ubus("system", "board")
+-%>
+
+
+<!-- partial -->
+<div class="main-right">
+	<div class="darkMask"></div>
+			<div id="maincontent">
+					<%- if luci.sys.process.info("uid") == 0 and luci.sys.user.getuser("root") and not luci.sys.user.getpasswd("root") then -%>
+					<div class="alert-message error">
+						<h4><%:No password set!%></h4>
+						<p><%:There is no password set on this router. Please configure a root password to protect the web interface and enable SSH.%>
+						</p>
+					</div>
+						<%- end -%>
+                     
+     <div class="container">
+        <form class="form" method="post" action="<%=pcdata(FULL_REQUEST_URI)%>">
+            <p class="neu"><%=striptags( (boardinfo.hostname or "?") ) %></p>
+            
+            <%- if fuser then %>
+    		<div class="errorbox"><%:Invalid username and/or password! Please try again.%></div>
+	   <% end -%>
+            <div class="input">
+                <div class="input-box">
+                    <input type="text" name="luci_username" placeholder="User name" value="<%=duser%>"/>
+                </div>
+                <div class="input-box">
+                    <input type="password" placeholder="Password" name="luci_password" />
+                </div>
+                <div class="input-box">
+                    <input type="submit" value="<%:Login%>">
+                </div>
+            </div>
+        </form>
+    </div>
+
+
+			<script type="text/javascript">//<![CDATA[
+				var input = document.getElementsByName('luci_password')[0];
+				if (input)
+					input.focus();
+			//]]></script>
+			<%
+			local uci  = require "luci.model.uci".cursor()
+			local fs  = require "nixio.fs"
+			local https_key = uci:get("uhttpd", "main", "key")
+			local https_port = uci:get("uhttpd", "main", "listen_https")
+			if type(https_port) == "table" then
+				https_port = https_port[1]
+			end
+
+			if https_port and fs.access(https_key) then
+				https_port = https_port:match("(%d+)$")
+			%>
+			<script type="text/javascript">//<![CDATA[
+				if (document.location.protocol != 'https:') {
+					var url = 'https://' + window.location.hostname + ':' + '<%=https_port%>' + window.location.pathname;
+					var img = new Image;
+					img.onload = function () { window.location = url };
+					img.src = 'https://' + window.location.hostname + ':' + '<%=https_port%>' + '<%=resource%>/cbi/up.gif?' + Math.random();;
+					setTimeout(function () {
+						img.src = ''
+					}, 5000);
+				}
+			//]]></script>
+			<% end %>
+
